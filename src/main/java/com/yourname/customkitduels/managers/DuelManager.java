@@ -127,7 +127,6 @@ public class DuelManager {
         // FIXED: Regenerate arena at START of duel
         if (arena.hasRegeneration()) {
             plugin.getArenaManager().regenerateArena(arena);
-            plugin.getLogger().info("Regenerated arena " + arena.getName() + " at duel start");
         }
         
         // Give kit immediately after accepting so players can organize during countdown
@@ -223,7 +222,7 @@ public class DuelManager {
         refreshPlayerForDuel(challenger, kit, challenger.getUniqueId());
         refreshPlayerForDuel(target, kit, challenger.getUniqueId());
         
-        // Start arena bounds checking
+        // Start arena bounds checking - OPTIMIZED: Check every 2 seconds
         startArenaBoundsChecking(challenger, arena);
         startArenaBoundsChecking(target, arena);
         
@@ -236,10 +235,6 @@ public class DuelManager {
         // Show scoreboard
         plugin.getScoreboardManager().showDuelScoreboard(challenger, roundsDuel);
         plugin.getScoreboardManager().showDuelScoreboard(target, roundsDuel);
-        
-        if (plugin.isDebugEnabled()) {
-            plugin.getLogger().info("Started rounds duel between " + challenger.getName() + " and " + target.getName());
-        }
     }
     
     // New method to refresh player without giving kit again
@@ -296,7 +291,7 @@ public class DuelManager {
             }
         };
         
-        boundsChecker.runTaskTimer(plugin, 20L, 40L); // OPTIMIZED: Check every 2 seconds instead of 1
+        boundsChecker.runTaskTimer(plugin, 20L, 40L); // Check every 2 seconds
         arenaBoundsCheckers.put(player.getUniqueId(), boundsChecker);
     }
     
@@ -370,9 +365,6 @@ public class DuelManager {
             // FIXED: Regenerate arena at END of duel
             if (roundsDuel.getArena().hasRegeneration()) {
                 plugin.getArenaManager().regenerateArena(roundsDuel.getArena());
-                if (plugin.isDebugEnabled()) {
-                    plugin.getLogger().info("Regenerated arena " + roundsDuel.getArena().getName() + " at duel end");
-                }
             }
             
             // Get delay from config
@@ -401,9 +393,6 @@ public class DuelManager {
                     startNextRound(roundsDuel);
                 } else {
                     // End duel if someone disconnected
-                    if (plugin.isDebugEnabled()) {
-                        plugin.getLogger().info("Ending rounds duel - player disconnected during round transition");
-                    }
                     activeRoundsDuels.remove(roundsDuel.getPlayer1().getUniqueId());
                     activeRoundsDuels.remove(roundsDuel.getPlayer2().getUniqueId());
                     plugin.getScoreboardManager().removeDuelScoreboard(roundsDuel.getPlayer1());
@@ -433,9 +422,6 @@ public class DuelManager {
         // Regenerate arena between rounds if enabled
         if (roundsDuel.getArena().hasRegeneration()) {
             plugin.getArenaManager().regenerateArena(roundsDuel.getArena());
-            if (plugin.isDebugEnabled()) {
-                plugin.getLogger().info("Regenerated arena " + roundsDuel.getArena().getName() + " between rounds");
-            }
         }
         
         // Teleport players back to spawn points
@@ -526,14 +512,8 @@ public class DuelManager {
         try {
             player.getAttribute(Attribute.MAX_HEALTH).setBaseValue(20.0);
             player.setHealth(20.0);
-            if (plugin.isDebugEnabled()) {
-                plugin.getLogger().info("Restored health to 20 (10 hearts) for player " + player.getName());
-            }
         } catch (Exception e) {
             // Fallback if attribute access fails
-            if (plugin.isDebugEnabled()) {
-                plugin.getLogger().warning("Failed to reset max health for player " + player.getName() + ": " + e.getMessage());
-            }
             player.setHealth(Math.min(20.0, player.getMaxHealth()));
         }
         player.setFoodLevel(20);
@@ -588,14 +568,8 @@ public class DuelManager {
         try {
             player.getAttribute(Attribute.MAX_HEALTH).setBaseValue(maxHealth);
             player.setHealth(maxHealth);
-            if (plugin.isDebugEnabled()) {
-                plugin.getLogger().info("Set health to " + maxHealth + " (" + kitHearts + " hearts) for player " + player.getName() + " in duel");
-            }
         } catch (Exception e) {
             // Fallback if attribute access fails
-            if (plugin.isDebugEnabled()) {
-                plugin.getLogger().warning("Failed to set max health for player " + player.getName() + ": " + e.getMessage());
-            }
             player.setHealth(Math.min(maxHealth, player.getMaxHealth()));
         }
         
@@ -606,9 +580,6 @@ public class DuelManager {
         // Handle natural health regeneration setting per player
         if (!naturalRegen) {
             playerNaturalRegenState.put(player.getUniqueId(), false);
-            if (plugin.isDebugEnabled()) {
-                plugin.getLogger().info("Disabled natural regeneration for player " + player.getName() + " during duel");
-            }
         } else {
             playerNaturalRegenState.put(player.getUniqueId(), true);
         }

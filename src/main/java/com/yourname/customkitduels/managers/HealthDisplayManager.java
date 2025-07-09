@@ -59,7 +59,7 @@ public class HealthDisplayManager {
         // Set player to use health scoreboard
         player.setScoreboard(healthScoreboard);
         
-        // Start health update task
+        // Start health update task - FIXED: Update every 1 second
         BukkitRunnable healthTask = new BukkitRunnable() {
             @Override
             public void run() {
@@ -73,15 +73,11 @@ public class HealthDisplayManager {
             }
         };
         
-        healthTask.runTaskTimer(plugin, 0L, 20L); // OPTIMIZED: Update every 1 second instead of 0.5
+        healthTask.runTaskTimer(plugin, 0L, 20L); // Update every 1 second (20 ticks)
         healthTasks.put(player.getUniqueId(), healthTask);
         
         // Initial update
         updateHealthDisplay(player);
-        
-        if (plugin.isDebugEnabled()) {
-            plugin.getLogger().info("Started below-name health display for " + player.getName());
-        }
     }
     
     /**
@@ -107,10 +103,6 @@ public class HealthDisplayManager {
                 player.setScoreboard(manager.getMainScoreboard());
             }
         }
-        
-        if (plugin.isDebugEnabled()) {
-            plugin.getLogger().info("Stopped below-name health display for " + player.getName());
-        }
     }
     
     /**
@@ -135,7 +127,7 @@ public class HealthDisplayManager {
             // Set the score to show hearts (rounded to nearest 0.5)
             int displayHearts = (int) Math.round(hearts * 2); // Multiply by 2 to show half hearts
             
-            // Get or create score for this player - FIXED: Use getScore() properly
+            // Get or create score for this player
             String playerName = player.getName();
             Score score = healthObjective.getScore(playerName);
             
@@ -144,10 +136,7 @@ public class HealthDisplayManager {
                 try {
                     score.setScore(displayHearts);
                 } catch (IllegalStateException e) {
-                    // OPTIMIZED: Skip re-registration if it fails to reduce overhead
-                    if (plugin.isDebugEnabled()) {
-                        plugin.getLogger().warning("Failed to update health score for " + playerName + ": " + e.getMessage());
-                    }
+                    // Skip if it fails to reduce overhead
                 }
             }
             
@@ -169,18 +158,13 @@ public class HealthDisplayManager {
                         try {
                             opponentScore.setScore(opponentDisplayHearts);
                         } catch (IllegalStateException e) {
-                            // OPTIMIZED: Skip re-registration if it fails to reduce overhead
-                            if (plugin.isDebugEnabled()) {
-                                plugin.getLogger().warning("Failed to update opponent health score for " + opponentName + ": " + e.getMessage());
-                            }
+                            // Skip if it fails to reduce overhead
                         }
                     }
                 }
             }
         } catch (Exception e) {
-            if (plugin.isDebugEnabled()) {
-                plugin.getLogger().warning("Error updating health display for " + player.getName() + ": " + e.getMessage());
-            }
+            // Silent fail to reduce console spam
         }
     }
     
@@ -221,9 +205,5 @@ public class HealthDisplayManager {
         }
         originalScoreboards.clear();
         playerHealthScoreboards.clear();
-        
-        if (plugin.isDebugEnabled()) {
-            plugin.getLogger().info("HealthDisplayManager cleaned up");
-        }
     }
 }

@@ -77,9 +77,6 @@ public class ScoreboardManager {
         
         try {
             scoreboardConfig.save(scoreboardFile);
-            if (plugin.isDebugEnabled()) {
-                plugin.getLogger().info("Created default scoreboard.yml with proper color format");
-            }
         } catch (IOException e) {
             plugin.getLogger().severe("Failed to create scoreboard.yml: " + e.getMessage());
         }
@@ -99,7 +96,7 @@ public class ScoreboardManager {
         
         playerBoards.put(player.getUniqueId(), board);
         
-        // Start update task for real-time updates - OPTIMIZED: Reduced frequency
+        // Start update task for real-time updates - FIXED: Update every 1 second
         BukkitRunnable updateTask = new BukkitRunnable() {
             @Override
             public void run() {
@@ -113,15 +110,11 @@ public class ScoreboardManager {
             }
         };
         
-        updateTask.runTaskTimer(plugin, 0L, 20L); // OPTIMIZED: Update every 1 second instead of 0.5
+        updateTask.runTaskTimer(plugin, 0L, 20L); // Update every 1 second (20 ticks)
         updateTasks.put(player.getUniqueId(), updateTask);
         
         // Initial update
         updateDuelScoreboard(player, roundsDuel);
-        
-        if (plugin.isDebugEnabled()) {
-            plugin.getLogger().info("Showing FastBoard duel scoreboard for " + player.getName());
-        }
     }
     
     public void updateDuelScoreboard(Player player, RoundsDuel roundsDuel) {
@@ -161,23 +154,20 @@ public class ScoreboardManager {
         if (board != null) {
             board.delete();
         }
-        
-        if (plugin.isDebugEnabled()) {
-            plugin.getLogger().info("Removed FastBoard duel scoreboard for " + player.getName());
-        }
     }
     
     private String replacePlaceholders(String line, Player player, Player opponent, RoundsDuel roundsDuel) {
         // OPTIMIZED: Cache duration calculation to reduce repeated operations
-        long durationMs = System.currentTimeMillis() - roundsDuel.getStartTime();
+        long currentTime = System.currentTimeMillis();
+        long durationMs = currentTime - roundsDuel.getStartTime();
         
-        // Only recalculate duration every second to reduce overhead
-        if (durationMs - lastDurationUpdate > 1000) {
+        // Update duration every second to reduce overhead
+        if (currentTime - lastDurationUpdate >= 1000) {
             long durationSeconds = durationMs / 1000;
             long minutes = durationSeconds / 60;
             long seconds = durationSeconds % 60;
             cachedDuration = String.format("%02d:%02d", minutes, seconds);
-            lastDurationUpdate = durationMs;
+            lastDurationUpdate = currentTime;
         }
         
         // Get scores
@@ -297,9 +287,6 @@ public class ScoreboardManager {
     
     public void reloadConfig() {
         loadScoreboardConfig();
-        if (plugin.isDebugEnabled()) {
-            plugin.getLogger().info("Scoreboard configuration reloaded with proper color support");
-        }
     }
     
     /**
@@ -317,9 +304,5 @@ public class ScoreboardManager {
             board.delete();
         }
         playerBoards.clear();
-        
-        if (plugin.isDebugEnabled()) {
-            plugin.getLogger().info("ScoreboardManager cleaned up");
-        }
     }
 }

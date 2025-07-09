@@ -18,6 +18,7 @@ import org.bukkit.event.player.PlayerCommandPreprocessEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
+import org.bukkit.event.player.PlayerRespawnEvent;
 
 public class PlayerListener implements Listener {
     
@@ -36,13 +37,8 @@ public class PlayerListener implements Listener {
             try {
                 player.getAttribute(Attribute.MAX_HEALTH).setBaseValue(20.0);
                 player.setHealth(20.0);
-                if (plugin.isDebugEnabled()) {
-                    plugin.getLogger().info("Reset health for joining player: " + player.getName());
-                }
             } catch (Exception e) {
-                if (plugin.isDebugEnabled()) {
-                    plugin.getLogger().warning("Failed to reset health for joining player " + player.getName() + ": " + e.getMessage());
-                }
+                // Silent fail
             }
         }, 20L); // Wait 1 second after join
     }
@@ -97,9 +93,6 @@ public class PlayerListener implements Listener {
             if (hasNaturalRegen != null && !hasNaturalRegen) {
                 if (event.getRegainReason() == EntityRegainHealthEvent.RegainReason.SATIATED) {
                     event.setCancelled(true);
-                    if (plugin.isDebugEnabled()) {
-                        plugin.getLogger().info("Cancelled natural health regen for " + player.getName() + " (kit setting)");
-                    }
                 }
             }
         }
@@ -168,10 +161,6 @@ public class PlayerListener implements Listener {
                     }, 20L); // 1 second delay
                 }
             }
-            
-            if (plugin.isDebugEnabled()) {
-                plugin.getLogger().info("Player " + player.getName() + " quit during duel - duel ended");
-            }
         }
     }
     
@@ -218,30 +207,32 @@ public class PlayerListener implements Listener {
             // Cancel death message
             event.setDeathMessage(null);
             
-            // FIXED: Respawn player at death location immediately
-            plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
-                if (player.isOnline()) {
-                    // Store death location
-                    Location deathLocation = player.getLocation().clone();
-                    
-                    // Respawn player
-                    player.spigot().respawn();
-                    
-                    // Teleport back to death location immediately after respawn
-                    plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
-                        if (player.isOnline()) {
-                            player.teleport(deathLocation);
-                        }
-                    }, 1L);
-                }
-            }, 1L);
+            // FIXED: Don't respawn player - let them stay at death location
+            // The player will be handled by the duel system
             
             // End the duel
             plugin.getDuelManager().endDuel(player, true);
+        }
+    }
+    
+    @EventHandler(priority = EventPriority.HIGHEST)
+    public void onPlayerRespawn(PlayerRespawnEvent event) {
+        Player player = event.getPlayer();
+        
+        // FIXED: If player is in duel, keep them at their current location
+        if (plugin.getDuelManager().isInAnyDuel(player)) {
+            // Store current location before respawn
+            Location currentLocation = player.getLocation();
             
-            if (plugin.isDebugEnabled()) {
-                plugin.getLogger().info("Player " + player.getName() + " died in duel - respawned at death location");
-            }
+            // Set respawn location to current location to prevent world spawn teleport
+            event.setRespawnLocation(currentLocation);
+            
+            // Ensure player stays at death location after respawn
+            plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
+                if (player.isOnline() && plugin.getDuelManager().isInAnyDuel(player)) {
+                    player.teleport(currentLocation);
+                }
+            }, 1L);
         }
     }
     
