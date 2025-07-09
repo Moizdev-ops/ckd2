@@ -32,6 +32,13 @@ public class ScoreboardManager {
     private static final Pattern MINI_HEX_PATTERN = Pattern.compile("<#([A-Fa-f0-9]{6})>");
     private static final Pattern GRADIENT_PATTERN = Pattern.compile("<gradient:(#[A-Fa-f0-9]{6}):(#[A-Fa-f0-9]{6})>(.*?)</gradient>");
     
+    // Cache for duration calculations to reduce overhead
+    private long lastDurationUpdate = 0;
+    private String cachedDuration = "00:00";
+    
+    // Cache for color translations to reduce repeated regex operations
+    private final Map<String, String> colorCache = new HashMap<>();
+    
     public ScoreboardManager(CustomKitDuels plugin) {
         this.plugin = plugin;
         this.scoreboardFile = new File(plugin.getDataFolder(), "scoreboard.yml");
@@ -162,8 +169,6 @@ public class ScoreboardManager {
     
     private String replacePlaceholders(String line, Player player, Player opponent, RoundsDuel roundsDuel) {
         // OPTIMIZED: Cache duration calculation to reduce repeated operations
-        static long lastDurationUpdate = 0;
-        static String cachedDuration = "00:00";
         long durationMs = System.currentTimeMillis() - roundsDuel.getStartTime();
         
         // Only recalculate duration every second to reduce overhead
@@ -205,7 +210,6 @@ public class ScoreboardManager {
         }
         
         // OPTIMIZED: Cache color translations to reduce repeated regex operations
-        static final Map<String, String> colorCache = new HashMap<>();
         String cached = colorCache.get(text);
         if (cached != null) {
             return cached;
