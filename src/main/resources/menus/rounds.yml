@@ -1,0 +1,41 @@
+# Rounds Selector Menu Configuration
+# This file controls the rounds selection GUI
+
+title: "&6Select Rounds to Win"
+
+# Items configuration
+items:
+  # Title item (slot 4)
+  title:
+    material: GOLDEN_SWORD
+    name: "&6Duel: <challenger> vs <target>"
+    lore:
+      - "&7Kit: <kit>"
+      - "&7Select how many rounds to win the duel"
+  
+  # Round options (slots 10-19)
+  round_option:
+    material: PAPER
+    name: "&eFirst to <rounds>"
+    lore:
+      - "&aClick to select"
+  
+  # Cancel button (slot 22)
+  cancel:
+    material: BARRIER
+    name: "&cCancel Duel"
+    lore:
+      - "&7Click to cancel the duel request"
+
+# Slot configuration
+slots:
+  title: 4
+  rounds_start: 10  # First round option slot
+  rounds_end: 19    # Last round option slot
+  cancel: 22
+
+# Available placeholders:
+# <challenger> - Challenger's name
+# <target> - Target player's name
+# <kit> - Kit name
+# <rounds> - Number of rounds

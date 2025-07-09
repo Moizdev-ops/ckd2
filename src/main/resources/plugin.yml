@@ -1,0 +1,65 @@
+name: CustomKitDuels
+version: 1.0.0
+main: com.yourname.customkitduels.CustomKitDuels
+api-version: 1.21
+author: moiz
+description: custom kit dueling plugin for minecraft 1.21.4 - made with love by moiz
+softdepend: [Multiverse-Core, FastAsyncWorldEdit, WorldEdit, HolographicDisplays, ProtocolLib]
+
+commands:
+  customkit:
+    description: main command for customkit
+    usage: /<command> [subcommand]
+    permission: customkitduels.use
+    permission-message: you don't have permission to use this command.
+
+permissions:
+  customkitduels.use:
+    description: allows basic use of customkit
+    default: true
+    children:
+      - customkitduels.create
+      - customkitduels.edit
+      - customkitduels.delete
+      - customkitduels.list
+      - customkitduels.duel
+      - customkitduels.leave
+  customkitduels.create:
+    description: allows creating kits
+    default: true
+  customkitduels.edit:
+    description: allows editing kits
+    default: true
+  customkitduels.delete:
+    description: allows deleting kits
+    default: true
+  customkitduels.list:
+    description: allows listing kits
+    default: true
+  customkitduels.duel:
+    description: allows challenging players to duels
+    default: true
+  customkitduels.leave:
+    description: allows leaving duels
+    default: true
+  customkitduels.admin:
+    description: allows admin commands for customkit
+    default: op
+    children:
+      - customkitduels.use
+      - customkitduels.arena
+      - customkitduels.setspawn
+      - customkitduels.editcategory
+      - customkitduels.reload
+  customkitduels.arena:
+    description: allows arena management
+    default: op
+  customkitduels.setspawn:
+    description: allows setting spawn point
+    default: op
+  customkitduels.editcategory:
+    description: allows editing item categories
+    default: op
+  customkitduels.reload:
+    description: allows reloading plugin configuration
+    default: op

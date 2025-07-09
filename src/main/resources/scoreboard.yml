@@ -1,0 +1,40 @@
+# Enhanced Scoreboard Configuration with proper color support
+# Supports hex colors using &#RRGGBB format and legacy colors
+
+# Title with hex color
+title: "&#00FF98&lPakMC"
+
+# Scoreboard lines with proper color formatting
+lines:
+  - " "
+  - " &#00FF98&lDUEL &7(FT&#C3F6E2<rounds>&7)"
+  - " &#C3F6E2│ Duration: &#00FF98<duration>"
+  - " &#C3F6E2│ Round: &#00FF98<current_round>"
+  - " "
+  - " &#00FF98&lSCORE"
+  - " &#C3F6E2│ &a<player_score> &7- &c<opponent_score>"
+  - " &#C3F6E2│ &7<player_name> vs <opponent_name>"
+  - " "
+  - "    &#C3F6E2pakmc.xyz"
+
+# Available placeholders:
+# <rounds> - Target rounds to win
+# <duration> - Duel duration (MM:SS format)
+# <current_round> - Current round number
+# <player_score> - Player's round wins
+# <opponent_score> - Opponent's round wins
+# <player_name> - Player's name (truncated to 8 chars)
+# <opponent_name> - Opponent's name (truncated to 8 chars)
+
+# Color formatting options:
+# 
+# Hex Colors:
+# &#RRGGBB
+# Examples: &#FF0000 (red), &#00FF00 (green), &#0000FF (blue)
+#
+# Legacy Colors:
+# &a, &b, &c, &d, &e, &f, &0-9, &l, &m, &n, &o, &r
+#
+# Example lines:
+# " &#FF6B6B&lCustom hex color with &lbold"
+# " &a&lGreen text with legacy colors"

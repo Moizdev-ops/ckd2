@@ -1,0 +1,44 @@
+# Kit Selector Menu Configuration
+# This file controls the kit selection GUI
+
+title: "&4Select Your Kit"
+
+# Items configuration
+items:
+  # Kit item template
+  kit:
+    material: BOOK
+    name: "&c<kit_name>"
+    lore:
+      - "&7Challenge <target> with this kit"
+      - "&7Hearts: &f<hearts>"
+      - "&7Natural Regen: <natural_regen>"
+      - ""
+      - "&aClick to select"
+  
+  # No kits message (slot 13)
+  no_kits:
+    material: BARRIER
+    name: "&cNo Kits Found"
+    lore:
+      - "&7You don't have any kits!"
+      - "&eCreate one with /customkit create"
+  
+  # Cancel button (slot 22)
+  cancel:
+    material: BARRIER
+    name: "&cCancel"
+    lore:
+      - "&7Cancel duel request"
+
+# Slot configuration
+slots:
+  kit_slots: [10, 11, 12, 13, 14, 15, 16]  # Available slots for kits
+  no_kits: 13
+  cancel: 22
+
+# Available placeholders:
+# <kit_name> - Name of the kit
+# <target> - Target player's name
+# <hearts> - Kit hearts setting
+# <natural_regen> - Natural regeneration status (Enabled/Disabled)
