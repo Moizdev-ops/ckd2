@@ -331,6 +331,9 @@ public class DuelManager {
         // Add win to the winner
         roundsDuel.addWin(roundWinner);
         
+        // Show win/loss titles with configurable messages
+        showRoundResultTitles(roundWinner, roundLoser, roundsDuel);
+        
         // Update scoreboards
         plugin.getScoreboardManager().updateDuelScoreboard(roundsDuel.getPlayer1(), roundsDuel);
         plugin.getScoreboardManager().updateDuelScoreboard(roundsDuel.getPlayer2(), roundsDuel);
@@ -402,6 +405,27 @@ public class DuelManager {
                 }
             }, roundTransitionDelay * 20L);
         }
+    }
+    
+    private void showRoundResultTitles(Player winner, Player loser, RoundsDuel roundsDuel) {
+        // Get scores for display
+        int winnerScore = winner.equals(roundsDuel.getPlayer1()) ? roundsDuel.getPlayer1Wins() : roundsDuel.getPlayer2Wins();
+        int loserScore = winner.equals(roundsDuel.getPlayer1()) ? roundsDuel.getPlayer2Wins() : roundsDuel.getPlayer1Wins();
+        String scoreText = winnerScore + "-" + loserScore;
+        
+        // Get configurable messages
+        String winTitle = plugin.getConfig().getString("messages.round-win-title", "&9Won!");
+        String loseTitle = plugin.getConfig().getString("messages.round-lose-title", "&cLost!");
+        String scoreSubtitle = plugin.getConfig().getString("messages.round-score-subtitle", "&7Score: &f{score}");
+        
+        // Replace placeholders and translate colors
+        winTitle = ChatColor.translateAlternateColorCodes('&', winTitle);
+        loseTitle = ChatColor.translateAlternateColorCodes('&', loseTitle);
+        scoreSubtitle = ChatColor.translateAlternateColorCodes('&', scoreSubtitle.replace("{score}", scoreText));
+        
+        // Show titles
+        winner.sendTitle(winTitle, scoreSubtitle, 10, 40, 10);
+        loser.sendTitle(loseTitle, scoreSubtitle, 10, 40, 10);
     }
     
     private void startNextRound(RoundsDuel roundsDuel) {

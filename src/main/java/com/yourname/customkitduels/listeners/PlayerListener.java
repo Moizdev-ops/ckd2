@@ -191,7 +191,7 @@ public class PlayerListener implements Listener {
         player.updateInventory();
     }
     
-    @EventHandler(priority = EventPriority.HIGH)
+    @EventHandler(priority = EventPriority.HIGHEST)
     public void onPlayerDeath(PlayerDeathEvent event) {
         Player player = event.getEntity();
         
@@ -200,17 +200,14 @@ public class PlayerListener implements Listener {
             event.getDrops().clear();
             event.setDroppedExp(0);
             
-            // FIXED: Keep player at death location instead of respawning
+            // Keep player at death location - prevent any teleportation
             event.setKeepInventory(true);
             event.setKeepLevel(true);
             
             // Cancel death message
             event.setDeathMessage(null);
             
-            // FIXED: Don't respawn player - let them stay at death location
-            // The player will be handled by the duel system
-            
-            // End the duel
+            // End the duel round
             plugin.getDuelManager().endDuel(player, true);
         }
     }
@@ -219,20 +216,21 @@ public class PlayerListener implements Listener {
     public void onPlayerRespawn(PlayerRespawnEvent event) {
         Player player = event.getPlayer();
         
-        // FIXED: If player is in duel, keep them at their current location
+        // FIXED: Cancel respawn completely if player is in duel to prevent world spawn teleportation
         if (plugin.getDuelManager().isInAnyDuel(player)) {
-            // Store current location before respawn
-            Location currentLocation = player.getLocation();
+            // Cancel the respawn event to prevent any teleportation
+            event.setCancelled(true);
             
-            // Set respawn location to current location to prevent world spawn teleport
-            event.setRespawnLocation(currentLocation);
-            
-            // Ensure player stays at death location after respawn
-            plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
+            // Keep player alive at current location
+            plugin.getServer().getScheduler().runTask(plugin, () -> {
                 if (player.isOnline() && plugin.getDuelManager().isInAnyDuel(player)) {
-                    player.teleport(currentLocation);
+                    // Set health to 1 to keep player alive but show they "died"
+                    player.setHealth(1.0);
+                    
+                    // Add temporary invulnerability to prevent immediate re-death
+                    player.setNoDamageTicks(40); // 2 seconds of invulnerability
                 }
-            }, 1L);
+            });
         }
     }
     

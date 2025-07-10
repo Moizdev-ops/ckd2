@@ -33,8 +33,8 @@ public class ScoreboardManager {
     private static final Pattern GRADIENT_PATTERN = Pattern.compile("<gradient:(#[A-Fa-f0-9]{6}):(#[A-Fa-f0-9]{6})>(.*?)</gradient>");
     
     // Cache for duration calculations to reduce overhead
-    private long lastDurationUpdate = 0;
-    private String cachedDuration = "00:00";
+    private final Map<UUID, Long> lastDurationUpdate = new HashMap<>();
+    private final Map<UUID, String> cachedDuration = new HashMap<>();
     
     // Cache for color translations to reduce repeated regex operations
     private final Map<String, String> colorCache = new HashMap<>();
@@ -161,13 +161,18 @@ public class ScoreboardManager {
         long currentTime = System.currentTimeMillis();
         long durationMs = currentTime - roundsDuel.getStartTime();
         
+        UUID playerId = player.getUniqueId();
+        Long lastUpdate = lastDurationUpdate.get(playerId);
+        String duration = cachedDuration.get(playerId);
+        
         // Update duration every second to reduce overhead
-        if (currentTime - lastDurationUpdate >= 1000) {
+        if (lastUpdate == null || currentTime - lastUpdate >= 1000) {
             long durationSeconds = durationMs / 1000;
             long minutes = durationSeconds / 60;
             long seconds = durationSeconds % 60;
-            cachedDuration = String.format("%02d:%02d", minutes, seconds);
-            lastDurationUpdate = currentTime;
+            duration = String.format("%02d:%02d", minutes, seconds);
+            cachedDuration.put(playerId, duration);
+            lastDurationUpdate.put(playerId, currentTime);
         }
         
         // Get scores
@@ -176,7 +181,7 @@ public class ScoreboardManager {
         
         return line
             .replace("<rounds>", String.valueOf(roundsDuel.getTargetRounds()))
-            .replace("<duration>", cachedDuration)
+            .replace("<duration>", duration != null ? duration : "00:00")
             .replace("<current_round>", String.valueOf(roundsDuel.getCurrentRound()))
             .replace("<player_score>", String.valueOf(playerScore))
             .replace("<opponent_score>", String.valueOf(opponentScore))
@@ -304,5 +309,9 @@ public class ScoreboardManager {
             board.delete();
         }
         playerBoards.clear();
+        
+        // Clear caches
+        lastDurationUpdate.clear();
+        cachedDuration.clear();
     }
 }
