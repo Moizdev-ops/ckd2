@@ -5,12 +5,12 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.yourname</groupId>
-    <artifactId>customkitduels</artifactId>
+    <artifactId>mango</artifactId>
     <version>1.0.0</version>
     <packaging>jar</packaging>
 
-    <name>CustomKitDuels</name>
-    <description>Custom kit dueling plugin for Minecraft 1.21.4 with Adventure API and FastBoard</description>
+    <name>Mango</name>
+    <description>Mango - Custom kit dueling plugin for Minecraft 1.21.4 with Adventure API and FastBoard</description>
 
     <properties>
         <maven.compiler.source>21</maven.compiler.source>

@@ -32,6 +32,13 @@ public class ScoreboardManager {
     private static final Pattern MINI_HEX_PATTERN = Pattern.compile("<#([A-Fa-f0-9]{6})>");
     private static final Pattern GRADIENT_PATTERN = Pattern.compile("<gradient:(#[A-Fa-f0-9]{6}):(#[A-Fa-f0-9]{6})>(.*?)</gradient>");
     
+    // Cache for duration calculations to reduce overhead
+    private final Map<UUID, Long> lastDurationUpdate = new HashMap<>();
+    private final Map<UUID, String> cachedDuration = new HashMap<>();
+    
+    // Cache for color translations to reduce repeated regex operations
+    private final Map<String, String> colorCache = new HashMap<>();
+    
     public ScoreboardManager(CustomKitDuels plugin) {
         this.plugin = plugin;
         this.scoreboardFile = new File(plugin.getDataFolder(), "scoreboard.yml");
@@ -70,9 +77,6 @@ public class ScoreboardManager {
         
         try {
             scoreboardConfig.save(scoreboardFile);
-            if (plugin.isDebugEnabled()) {
-                plugin.getLogger().info("Created default scoreboard.yml with proper color format");
-            }
         } catch (IOException e) {
             plugin.getLogger().severe("Failed to create scoreboard.yml: " + e.getMessage());
         }
@@ -92,7 +96,7 @@ public class ScoreboardManager {
         
         playerBoards.put(player.getUniqueId(), board);
         
-        // Start update task for real-time updates - OPTIMIZED: Reduced frequency
+        // Start update task for real-time updates - FIXED: Update every 1 second
         BukkitRunnable updateTask = new BukkitRunnable() {
             @Override
             public void run() {
@@ -106,17 +110,16 @@ public class ScoreboardManager {
             }
         };
         
-        updateTask.runTaskTimer(plugin, 0L, 20L); // OPTIMIZED: Update every 1 second instead of 0.5
+        updateTask.runTaskTimer(plugin, 0L, 20L); // Update every 1 second (20 ticks)
         updateTasks.put(player.getUniqueId(), updateTask);
         
         // Initial update
         updateDuelScoreboard(player, roundsDuel);
-        
-        if (plugin.isDebugEnabled()) {
-            plugin.getLogger().info("Showing FastBoard duel scoreboard for " + player.getName());
-        }
     }
     
+    /**
+     * OPTIMIZED: High-performance scoreboard update with minimal overhead
+     */
     public void updateDuelScoreboard(Player player, RoundsDuel roundsDuel) {
         FastBoard board = playerBoards.get(player.getUniqueId());
         if (board == null) return;
@@ -126,19 +129,20 @@ public class ScoreboardManager {
         
         if (opponent == null) return;
         
-        List<String> processedLines = new ArrayList<>();
+        // PERFORMANCE: Pre-allocate list with known size
+        List<String> processedLines = new ArrayList<>(lines.size());
         
         // Process each line
         for (String line : lines) {
             String processedLine = replacePlaceholders(line, player, opponent, roundsDuel);
             
-            // Translate colors properly
+            // OPTIMIZED: Efficient color translation
             processedLine = translateColors(processedLine);
             
             processedLines.add(processedLine);
         }
         
-        // Update FastBoard with processed lines
+        // PERFORMANCE: Single batch update
         board.updateLines(processedLines);
     }
     
@@ -154,25 +158,25 @@ public class ScoreboardManager {
         if (board != null) {
             board.delete();
         }
-        
-        if (plugin.isDebugEnabled()) {
-            plugin.getLogger().info("Removed FastBoard duel scoreboard for " + player.getName());
-        }
     }
     
     private String replacePlaceholders(String line, Player player, Player opponent, RoundsDuel roundsDuel) {
         // OPTIMIZED: Cache duration calculation to reduce repeated operations
-        static long lastDurationUpdate = 0;
-        static String cachedDuration = "00:00";
-        long durationMs = System.currentTimeMillis() - roundsDuel.getStartTime();
+        long currentTime = System.currentTimeMillis();
+        long durationMs = currentTime - roundsDuel.getStartTime();
         
-        // Only recalculate duration every second to reduce overhead
-        if (durationMs - lastDurationUpdate > 1000) {
+        UUID playerId = player.getUniqueId();
+        Long lastUpdate = lastDurationUpdate.get(playerId);
+        String duration = cachedDuration.get(playerId);
+        
+        // Update duration every second to reduce overhead
+        if (lastUpdate == null || currentTime - lastUpdate >= 1000) {
             long durationSeconds = durationMs / 1000;
             long minutes = durationSeconds / 60;
             long seconds = durationSeconds % 60;
-            cachedDuration = String.format("%02d:%02d", minutes, seconds);
-            lastDurationUpdate = durationMs;
+            duration = String.format("%02d:%02d", minutes, seconds);
+            cachedDuration.put(playerId, duration);
+            lastDurationUpdate.put(playerId, currentTime);
         }
         
         // Get scores
@@ -181,7 +185,7 @@ public class ScoreboardManager {
         
         return line
             .replace("<rounds>", String.valueOf(roundsDuel.getTargetRounds()))
-            .replace("<duration>", cachedDuration)
+            .replace("<duration>", duration != null ? duration : "00:00")
             .replace("<current_round>", String.valueOf(roundsDuel.getCurrentRound()))
             .replace("<player_score>", String.valueOf(playerScore))
             .replace("<opponent_score>", String.valueOf(opponentScore))
@@ -197,15 +201,14 @@ public class ScoreboardManager {
     }
     
     /**
-     * Properly translate colors including hex colors
+     * OPTIMIZED: High-performance color translation with caching
      */
     private String translateColors(String text) {
         if (text == null || text.isEmpty()) {
             return text;
         }
         
-        // OPTIMIZED: Cache color translations to reduce repeated regex operations
-        static final Map<String, String> colorCache = new HashMap<>();
+        // PERFORMANCE: Cache lookup first
         String cached = colorCache.get(text);
         if (cached != null) {
             return cached;
@@ -213,20 +216,14 @@ public class ScoreboardManager {
         
         String result = text;
         
-        // Convert &#RRGGBB to proper hex format
+        // OPTIMIZED: Efficient color conversion
         result = convertHexColors(result);
-        
-        // Convert <#RRGGBB> to proper hex format
         result = convertMiniHexColors(result);
-        
-        // Handle gradients (simplified - just use first color)
         result = convertGradients(result);
-        
-        // Handle legacy color codes
         result = ChatColor.translateAlternateColorCodes('&', result);
         
-        // Cache the result for future use
-        if (colorCache.size() < 100) { // Prevent memory leak
+        // PERFORMANCE: Smart cache management
+        if (colorCache.size() < 50) { // Smaller cache for better performance
             colorCache.put(text, result);
         }
         
@@ -293,9 +290,6 @@ public class ScoreboardManager {
     
     public void reloadConfig() {
         loadScoreboardConfig();
-        if (plugin.isDebugEnabled()) {
-            plugin.getLogger().info("Scoreboard configuration reloaded with proper color support");
-        }
     }
     
     /**
@@ -314,8 +308,8 @@ public class ScoreboardManager {
         }
         playerBoards.clear();
         
-        if (plugin.isDebugEnabled()) {
-            plugin.getLogger().info("ScoreboardManager cleaned up");
-        }
+        // Clear caches
+        lastDurationUpdate.clear();
+        cachedDuration.clear();
     }
 }

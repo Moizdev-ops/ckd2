@@ -38,8 +38,6 @@ public class ArenaEditorGUI implements Listener {
         this.arena = arena;
         this.gui = Bukkit.createInventory(null, 45, ChatColor.DARK_GREEN + "Arena Editor: " + arena.getName());
         
-        plugin.getLogger().info("[DEBUG] Creating ArenaEditorGUI for player " + player.getName() + " arena " + arena.getName());
-        
         setupGUI();
         plugin.getServer().getPluginManager().registerEvents(this, plugin);
     }
@@ -186,11 +184,8 @@ public class ArenaEditorGUI implements Listener {
     }
     
     public void open() {
-        plugin.getLogger().info("[DEBUG] Opening ArenaEditorGUI for " + player.getName());
-        
         ArenaEditorGUI existing = activeGuis.get(player.getUniqueId());
         if (existing != null && existing != this) {
-            plugin.getLogger().info("[DEBUG] Cleaning up existing ArenaEditorGUI for " + player.getName());
             existing.forceCleanup();
         }
         
@@ -210,8 +205,6 @@ public class ArenaEditorGUI implements Listener {
         
         event.setCancelled(true);
         int slot = event.getSlot();
-        
-        plugin.getLogger().info("[DEBUG] ArenaEditorGUI click event - Player: " + player.getName() + ", Slot: " + slot);
         
         switch (slot) {
             case 10: // Position 1
@@ -347,7 +340,6 @@ public class ArenaEditorGUI implements Listener {
     }
     
     private void forceCleanup() {
-        plugin.getLogger().info("[DEBUG] Force cleanup ArenaEditorGUI for " + player.getName());
         isActive = false;
         activeGuis.remove(player.getUniqueId());
         waitingForPosition.remove(player.getUniqueId());
@@ -364,8 +356,6 @@ public class ArenaEditorGUI implements Listener {
         Player closer = (Player) event.getPlayer();
         
         if (closer.equals(player) && event.getInventory().equals(gui)) {
-            plugin.getLogger().info("[DEBUG] ArenaEditorGUI inventory closed by " + player.getName() + ", Active: " + isActive);
-            
             // Don't cleanup if waiting for position setting
             if (waitingForPosition.contains(player.getUniqueId())) {
                 return;
@@ -373,7 +363,6 @@ public class ArenaEditorGUI implements Listener {
             
             plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
                 if (isActive && activeGuis.containsKey(player.getUniqueId())) {
-                    plugin.getLogger().info("[DEBUG] Final cleanup ArenaEditorGUI for " + player.getName());
                     forceCleanup();
                 }
             }, 3L);

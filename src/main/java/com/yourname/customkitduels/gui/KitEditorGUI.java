@@ -48,17 +48,10 @@ public class KitEditorGUI implements Listener {
         this.kitArmor = new ItemStack[4];
         this.offhandItem = null;
         
-        if (plugin.isDebugEnabled()) {
-            plugin.getLogger().info("[DEBUG] Creating KitEditorGUI for player " + player.getName() + " with kit " + kitName);
-        }
-        
         // Load existing kit if editing
         if (!isNewKit) {
             Kit existingKit = plugin.getKitManager().getKit(player.getUniqueId(), kitName);
             if (existingKit != null) {
-                if (plugin.isDebugEnabled()) {
-                    plugin.getLogger().info("[DEBUG] Loading existing kit data for " + kitName);
-                }
                 System.arraycopy(existingKit.getContents(), 0, kitContents, 0, Math.min(existingKit.getContents().length, 36));
                 System.arraycopy(existingKit.getArmor(), 0, kitArmor, 0, 4);
                 // Load offhand if available (stored in slot 36 of contents array)
@@ -73,10 +66,6 @@ public class KitEditorGUI implements Listener {
     }
     
     private void setupGUI() {
-        if (plugin.isDebugEnabled()) {
-            plugin.getLogger().info("[DEBUG] Setting up GUI for " + player.getName());
-        }
-        
         // Clear GUI first
         gui.clear();
         
@@ -96,9 +85,6 @@ public class KitEditorGUI implements Listener {
         // Add control buttons
         setupControlButtons();
         
-        if (plugin.isDebugEnabled()) {
-            plugin.getLogger().info("[DEBUG] GUI setup complete for " + player.getName());
-        }
     }
     
     private void updateSlot(int slot) {
@@ -211,16 +197,9 @@ public class KitEditorGUI implements Listener {
     }
     
     public void open() {
-        if (plugin.isDebugEnabled()) {
-            plugin.getLogger().info("[DEBUG] Opening KitEditorGUI for " + player.getName());
-        }
-        
         // Clean up any existing GUI for this player
         KitEditorGUI existing = activeGuis.get(player.getUniqueId());
         if (existing != null && existing != this) {
-            if (plugin.isDebugEnabled()) {
-                plugin.getLogger().info("[DEBUG] Cleaning up existing GUI for " + player.getName());
-            }
             existing.forceCleanup();
         }
         
@@ -244,10 +223,6 @@ public class KitEditorGUI implements Listener {
         int slot = event.getSlot();
         ClickType clickType = event.getClick();
         
-        if (plugin.isDebugEnabled()) {
-            plugin.getLogger().info("[DEBUG] KitEditorGUI click event - Player: " + player.getName() + ", Slot: " + slot + ", ClickType: " + clickType + ", Active: " + isActive + ", BulkMode: " + isBulkMode);
-        }
-        
         // Handle enhanced bulk mode button
         if (slot == 47) {
             if (isBulkMode) {
@@ -268,33 +243,21 @@ public class KitEditorGUI implements Listener {
         
         // Handle control buttons
         if (slot == 45) { // Save button
-            if (plugin.isDebugEnabled()) {
-                plugin.getLogger().info("[DEBUG] Save button clicked by " + player.getName());
-            }
             saveKit();
             return;
         }
         
         if (slot == 53) { // Cancel button
-            if (plugin.isDebugEnabled()) {
-                plugin.getLogger().info("[DEBUG] Cancel button clicked by " + player.getName());
-            }
             forceCleanup();
             return;
         }
         
         if (slot == 49) { // Clear button
-            if (plugin.isDebugEnabled()) {
-                plugin.getLogger().info("[DEBUG] Clear button clicked by " + player.getName());
-            }
             clearAllSlots();
             return;
         }
         
         if (slot == 46) { // Kit Settings button
-            if (plugin.isDebugEnabled()) {
-                plugin.getLogger().info("[DEBUG] Kit Settings button clicked by " + player.getName());
-            }
             openKitSettings();
             return;
         }
@@ -337,10 +300,6 @@ public class KitEditorGUI implements Listener {
             }
             
             // Left-click or right-click on empty slot: open appropriate selector
-            if (plugin.isDebugEnabled()) {
-                plugin.getLogger().info("[DEBUG] Slot " + slot + " clicked by " + player.getName() + " - opening selector");
-            }
-            
             // Determine what type of selector to open based on slot
             if (slot >= 36 && slot <= 39) {
                 // Armor slot - open armor-specific selector
@@ -368,10 +327,6 @@ public class KitEditorGUI implements Listener {
     }
     
     private void openCategorySelectorForBulk(int slot) {
-        if (plugin.isDebugEnabled()) {
-            plugin.getLogger().info("[DEBUG] Opening category selector for bulk mode");
-        }
-        
         // Set navigation state to prevent cleanup
         isNavigating = true;
         
@@ -381,10 +336,6 @@ public class KitEditorGUI implements Listener {
     }
     
     private void openCategorySelector(int slot) {
-        if (plugin.isDebugEnabled()) {
-            plugin.getLogger().info("[DEBUG] Opening category selector for slot " + slot);
-        }
-        
         // Set navigation state to prevent cleanup
         isNavigating = true;
         
@@ -394,10 +345,6 @@ public class KitEditorGUI implements Listener {
     }
     
     private void openArmorSelector(int slot) {
-        if (plugin.isDebugEnabled()) {
-            plugin.getLogger().info("[DEBUG] Opening armor selector for slot " + slot);
-        }
-        
         // Set navigation state to prevent cleanup
         isNavigating = true;
         
@@ -407,10 +354,6 @@ public class KitEditorGUI implements Listener {
     }
     
     private void openItemModificationMenu(int slot, ItemStack item) {
-        if (plugin.isDebugEnabled()) {
-            plugin.getLogger().info("[DEBUG] Opening item modification menu for slot " + slot);
-        }
-        
         // Set navigation state to prevent cleanup
         isNavigating = true;
         
@@ -420,10 +363,6 @@ public class KitEditorGUI implements Listener {
     }
     
     private void openKitSettings() {
-        if (plugin.isDebugEnabled()) {
-            plugin.getLogger().info("[DEBUG] Opening kit settings for " + player.getName());
-        }
-        
         // Set navigation state to prevent cleanup
         isNavigating = true;
         
@@ -455,17 +394,10 @@ public class KitEditorGUI implements Listener {
         Player closer = (Player) event.getPlayer();
         
         if (closer.getUniqueId().equals(player.getUniqueId()) && event.getInventory().equals(gui)) {
-            if (plugin.isDebugEnabled()) {
-                plugin.getLogger().info("[DEBUG] KitEditorGUI inventory closed by " + player.getName() + ", Active: " + isActive + ", Navigating: " + isNavigating);
-            }
-            
             // Only cleanup if this is a final close (not navigation)
             if (isActive && !isNavigating) {
                 plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
                     if (isActive && !isNavigating) {
-                        if (plugin.isDebugEnabled()) {
-                            plugin.getLogger().info("[DEBUG] Auto-saving kit on close for " + player.getName());
-                        }
                         saveKit();
                     }
                 }, 5L);
@@ -474,9 +406,6 @@ public class KitEditorGUI implements Listener {
     }
     
     private void forceCleanup() {
-        if (plugin.isDebugEnabled()) {
-            plugin.getLogger().info("[DEBUG] Force cleanup for " + player.getName());
-        }
         isActive = false;
         isBulkMode = false;
         bulkItem = null;
@@ -488,10 +417,6 @@ public class KitEditorGUI implements Listener {
     }
     
     public void setSlotItem(int slot, ItemStack item) {
-        if (plugin.isDebugEnabled()) {
-            plugin.getLogger().info("[DEBUG] Setting slot " + slot + " to item " + (item != null ? item.getType() : "null") + " for " + player.getName());
-        }
-        
         if (slot < 36) {
             kitContents[slot] = item;
             updateSlot(slot);
@@ -505,16 +430,10 @@ public class KitEditorGUI implements Listener {
     }
     
     public void clearSlot(int slot) {
-        if (plugin.isDebugEnabled()) {
-            plugin.getLogger().info("[DEBUG] Clearing slot " + slot + " for " + player.getName());
-        }
         setSlotItem(slot, null);
     }
     
     private void clearAllSlots() {
-        if (plugin.isDebugEnabled()) {
-            plugin.getLogger().info("[DEBUG] Clearing all slots for " + player.getName());
-        }
         for (int i = 0; i < 36; i++) {
             kitContents[i] = null;
             updateSlot(i);
@@ -530,10 +449,6 @@ public class KitEditorGUI implements Listener {
     }
     
     private void saveKit() {
-        if (plugin.isDebugEnabled()) {
-            plugin.getLogger().info("[DEBUG] Saving kit " + kitName + " for " + player.getName());
-        }
-        
         // Create extended contents array to include offhand
         ItemStack[] extendedContents = new ItemStack[37];
         System.arraycopy(kitContents, 0, extendedContents, 0, 36);
@@ -549,10 +464,6 @@ public class KitEditorGUI implements Listener {
     }
     
     public void refreshAndReopen() {
-        if (plugin.isDebugEnabled()) {
-            plugin.getLogger().info("[DEBUG] Refreshing and reopening GUI for " + player.getName());
-        }
-        
         // Reset navigation state
         isNavigating = false;
         

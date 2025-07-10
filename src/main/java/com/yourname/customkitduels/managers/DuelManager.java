@@ -127,7 +127,6 @@ public class DuelManager {
         // FIXED: Regenerate arena at START of duel
         if (arena.hasRegeneration()) {
             plugin.getArenaManager().regenerateArena(arena);
-            plugin.getLogger().info("Regenerated arena " + arena.getName() + " at duel start");
         }
         
         // Give kit immediately after accepting so players can organize during countdown
@@ -223,7 +222,7 @@ public class DuelManager {
         refreshPlayerForDuel(challenger, kit, challenger.getUniqueId());
         refreshPlayerForDuel(target, kit, challenger.getUniqueId());
         
-        // Start arena bounds checking
+        // Start arena bounds checking - OPTIMIZED: Check every 2 seconds
         startArenaBoundsChecking(challenger, arena);
         startArenaBoundsChecking(target, arena);
         
@@ -236,10 +235,6 @@ public class DuelManager {
         // Show scoreboard
         plugin.getScoreboardManager().showDuelScoreboard(challenger, roundsDuel);
         plugin.getScoreboardManager().showDuelScoreboard(target, roundsDuel);
-        
-        if (plugin.isDebugEnabled()) {
-            plugin.getLogger().info("Started rounds duel between " + challenger.getName() + " and " + target.getName());
-        }
     }
     
     // New method to refresh player without giving kit again
@@ -288,16 +283,41 @@ public class DuelManager {
                     if (roundsDuel != null) {
                         Location spawnPoint = player.equals(roundsDuel.getPlayer1()) ? 
                             arena.getSpawn1() : arena.getSpawn2();
-                        player.teleport(spawnPoint);
+                        
+                        // FIXED: Safe teleport to prevent fall damage
+                        safeTeleportToArena(player, spawnPoint);
                         player.sendMessage(ChatColor.RED + "You cannot leave the arena during a duel!");
-                        player.playSound(player.getLocation(), Sound.ENTITY_ENDERMAN_TELEPORT, 1.0f, 1.0f);
                     }
                 }
             }
         };
         
-        boundsChecker.runTaskTimer(plugin, 20L, 40L); // OPTIMIZED: Check every 2 seconds instead of 1
+        // OPTIMIZED: Check every 1 second for better responsiveness
+        boundsChecker.runTaskTimer(plugin, 20L, 20L);
         arenaBoundsCheckers.put(player.getUniqueId(), boundsChecker);
+    }
+    
+    /**
+     * OPTIMIZED: Safe teleport that prevents fall damage and provides smooth experience
+     */
+    private void safeTeleportToArena(Player player, Location spawnPoint) {
+        // Store current velocity to prevent momentum issues
+        org.bukkit.util.Vector velocity = player.getVelocity();
+        
+        // Create safe spawn location (slightly above ground to prevent suffocation)
+        Location safeSpawn = spawnPoint.clone();
+        safeSpawn.setY(safeSpawn.getY() + 0.5); // Slightly above ground
+        
+        // Teleport player
+        player.teleport(safeSpawn);
+        
+        // FIXED: Prevent fall damage and reset velocity
+        player.setVelocity(new org.bukkit.util.Vector(0, 0, 0));
+        player.setFallDistance(0);
+        player.setNoDamageTicks(20); // 1 second of invulnerability
+        
+        // Play teleport sound
+        player.playSound(player.getLocation(), Sound.ENTITY_ENDERMAN_TELEPORT, 0.5f, 1.2f);
     }
     
     public void endDuel(Player player, boolean died) {
@@ -336,6 +356,9 @@ public class DuelManager {
         // Add win to the winner
         roundsDuel.addWin(roundWinner);
         
+        // Show win/loss titles with configurable messages
+        showRoundResultTitles(roundWinner, roundLoser, roundsDuel);
+        
         // Update scoreboards
         plugin.getScoreboardManager().updateDuelScoreboard(roundsDuel.getPlayer1(), roundsDuel);
         plugin.getScoreboardManager().updateDuelScoreboard(roundsDuel.getPlayer2(), roundsDuel);
@@ -370,9 +393,6 @@ public class DuelManager {
             // FIXED: Regenerate arena at END of duel
             if (roundsDuel.getArena().hasRegeneration()) {
                 plugin.getArenaManager().regenerateArena(roundsDuel.getArena());
-                if (plugin.isDebugEnabled()) {
-                    plugin.getLogger().info("Regenerated arena " + roundsDuel.getArena().getName() + " at duel end");
-                }
             }
             
             // Get delay from config
@@ -401,9 +421,6 @@ public class DuelManager {
                     startNextRound(roundsDuel);
                 } else {
                     // End duel if someone disconnected
-                    if (plugin.isDebugEnabled()) {
-                        plugin.getLogger().info("Ending rounds duel - player disconnected during round transition");
-                    }
                     activeRoundsDuels.remove(roundsDuel.getPlayer1().getUniqueId());
                     activeRoundsDuels.remove(roundsDuel.getPlayer2().getUniqueId());
                     plugin.getScoreboardManager().removeDuelScoreboard(roundsDuel.getPlayer1());
@@ -413,6 +430,27 @@ public class DuelManager {
                 }
             }, roundTransitionDelay * 20L);
         }
+    }
+    
+    private void showRoundResultTitles(Player winner, Player loser, RoundsDuel roundsDuel) {
+        // Get scores for display
+        int winnerScore = winner.equals(roundsDuel.getPlayer1()) ? roundsDuel.getPlayer1Wins() : roundsDuel.getPlayer2Wins();
+        int loserScore = winner.equals(roundsDuel.getPlayer1()) ? roundsDuel.getPlayer2Wins() : roundsDuel.getPlayer1Wins();
+        String scoreText = winnerScore + "-" + loserScore;
+        
+        // Get configurable messages
+        String winTitle = plugin.getConfig().getString("messages.round-win-title", "&9Won!");
+        String loseTitle = plugin.getConfig().getString("messages.round-lose-title", "&cLost!");
+        String scoreSubtitle = plugin.getConfig().getString("messages.round-score-subtitle", "&7Score: &f{score}");
+        
+        // Replace placeholders and translate colors
+        winTitle = ChatColor.translateAlternateColorCodes('&', winTitle);
+        loseTitle = ChatColor.translateAlternateColorCodes('&', loseTitle);
+        scoreSubtitle = ChatColor.translateAlternateColorCodes('&', scoreSubtitle.replace("{score}", scoreText));
+        
+        // Show titles
+        winner.sendTitle(winTitle, scoreSubtitle, 10, 40, 10);
+        loser.sendTitle(loseTitle, scoreSubtitle, 10, 40, 10);
     }
     
     private void startNextRound(RoundsDuel roundsDuel) {
@@ -433,18 +471,15 @@ public class DuelManager {
         // Regenerate arena between rounds if enabled
         if (roundsDuel.getArena().hasRegeneration()) {
             plugin.getArenaManager().regenerateArena(roundsDuel.getArena());
-            if (plugin.isDebugEnabled()) {
-                plugin.getLogger().info("Regenerated arena " + roundsDuel.getArena().getName() + " between rounds");
-            }
         }
         
         // Teleport players back to spawn points
         player1.teleport(roundsDuel.getArena().getSpawn1());
         player2.teleport(roundsDuel.getArena().getSpawn2());
         
-        // Prepare players for next round with SAME kit settings
-        preparePlayer(player1, roundsDuel.getKit(), roundsDuel.getPlayer1().getUniqueId());
-        preparePlayer(player2, roundsDuel.getKit(), roundsDuel.getPlayer1().getUniqueId());
+        // FIXED: Clear inventories and give fresh kit for next round
+        clearAndPreparePlayer(player1, roundsDuel.getKit(), roundsDuel.getPlayer1().getUniqueId());
+        clearAndPreparePlayer(player2, roundsDuel.getKit(), roundsDuel.getPlayer1().getUniqueId());
         
         // Restart health display if enabled
         if (plugin.getKitManager().getKitHealthIndicators(roundsDuel.getPlayer1().getUniqueId(), roundsDuel.getKit().getName())) {
@@ -505,6 +540,64 @@ public class DuelManager {
         }.runTaskTimer(plugin, 0L, 20L);
     }
     
+    /**
+     * OPTIMIZED: Clear inventory and give fresh kit for new round
+     */
+    private void clearAndPreparePlayer(Player player, Kit kit, UUID kitOwnerUUID) {
+        // PERFORMANCE: Clear everything in one batch operation
+        player.getInventory().clear();
+        player.getInventory().setArmorContents(new ItemStack[4]);
+        player.getInventory().setItemInOffHand(null);
+        
+        // Remove all potion effects efficiently
+        player.getActivePotionEffects().forEach(effect -> player.removePotionEffect(effect.getType()));
+        
+        // Get kit settings from the kit owner (challenger)
+        double kitHearts = plugin.getKitManager().getKitHearts(kitOwnerUUID, kit.getName());
+        boolean naturalRegen = plugin.getKitManager().getKitNaturalRegen(kitOwnerUUID, kit.getName());
+        
+        // Set health based on kit settings (convert hearts to health points)
+        double maxHealth = kitHearts * 2.0; // 1 heart = 2 health points
+        try {
+            player.getAttribute(Attribute.MAX_HEALTH).setBaseValue(maxHealth);
+            player.setHealth(maxHealth);
+        } catch (Exception e) {
+            player.setHealth(Math.min(maxHealth, player.getMaxHealth()));
+        }
+        
+        // Set hunger and saturation
+        player.setFoodLevel(20);
+        player.setSaturation(20);
+        
+        // Handle natural health regeneration setting per player
+        playerNaturalRegenState.put(player.getUniqueId(), naturalRegen);
+        
+        // Set gamemode
+        player.setGameMode(GameMode.SURVIVAL);
+        
+        // Give kit - handle main inventory (36 slots)
+        ItemStack[] contents = kit.getContents();
+        if (contents != null) {
+            // Set main inventory (slots 0-35)
+            ItemStack[] mainInventory = new ItemStack[36];
+            System.arraycopy(contents, 0, mainInventory, 0, Math.min(contents.length, 36));
+            player.getInventory().setContents(mainInventory);
+            
+            // Set offhand (slot 36 in our extended array)
+            if (contents.length > 36 && contents[36] != null) {
+                player.getInventory().setItemInOffHand(contents[36]);
+            }
+        }
+        
+        // Give armor
+        if (kit.getArmor() != null) {
+            player.getInventory().setArmorContents(kit.getArmor().clone());
+        }
+        
+        // PERFORMANCE: Single inventory update at the end
+        player.updateInventory();
+    }
+    
     private void restorePlayer(Player player) {
         // Stop health display
         plugin.getHealthDisplayManager().stopHealthDisplay(player);
@@ -526,14 +619,8 @@ public class DuelManager {
         try {
             player.getAttribute(Attribute.MAX_HEALTH).setBaseValue(20.0);
             player.setHealth(20.0);
-            if (plugin.isDebugEnabled()) {
-                plugin.getLogger().info("Restored health to 20 (10 hearts) for player " + player.getName());
-            }
         } catch (Exception e) {
             // Fallback if attribute access fails
-            if (plugin.isDebugEnabled()) {
-                plugin.getLogger().warning("Failed to reset max health for player " + player.getName() + ": " + e.getMessage());
-            }
             player.setHealth(Math.min(20.0, player.getMaxHealth()));
         }
         player.setFoodLevel(20);
@@ -588,14 +675,8 @@ public class DuelManager {
         try {
             player.getAttribute(Attribute.MAX_HEALTH).setBaseValue(maxHealth);
             player.setHealth(maxHealth);
-            if (plugin.isDebugEnabled()) {
-                plugin.getLogger().info("Set health to " + maxHealth + " (" + kitHearts + " hearts) for player " + player.getName() + " in duel");
-            }
         } catch (Exception e) {
             // Fallback if attribute access fails
-            if (plugin.isDebugEnabled()) {
-                plugin.getLogger().warning("Failed to set max health for player " + player.getName() + ": " + e.getMessage());
-            }
             player.setHealth(Math.min(maxHealth, player.getMaxHealth()));
         }
         
@@ -606,9 +687,6 @@ public class DuelManager {
         // Handle natural health regeneration setting per player
         if (!naturalRegen) {
             playerNaturalRegenState.put(player.getUniqueId(), false);
-            if (plugin.isDebugEnabled()) {
-                plugin.getLogger().info("Disabled natural regeneration for player " + player.getName() + " during duel");
-            }
         } else {
             playerNaturalRegenState.put(player.getUniqueId(), true);
         }

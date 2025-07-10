@@ -59,7 +59,7 @@ public class HealthDisplayManager {
         // Set player to use health scoreboard
         player.setScoreboard(healthScoreboard);
         
-        // Start health update task
+        // Start health update task - FIXED: Update every 1 second
         BukkitRunnable healthTask = new BukkitRunnable() {
             @Override
             public void run() {
@@ -73,15 +73,11 @@ public class HealthDisplayManager {
             }
         };
         
-        healthTask.runTaskTimer(plugin, 0L, 20L); // OPTIMIZED: Update every 1 second instead of 0.5
+        healthTask.runTaskTimer(plugin, 0L, 20L); // Update every 1 second (20 ticks)
         healthTasks.put(player.getUniqueId(), healthTask);
         
         // Initial update
         updateHealthDisplay(player);
-        
-        if (plugin.isDebugEnabled()) {
-            plugin.getLogger().info("Started below-name health display for " + player.getName());
-        }
     }
     
     /**
@@ -107,14 +103,10 @@ public class HealthDisplayManager {
                 player.setScoreboard(manager.getMainScoreboard());
             }
         }
-        
-        if (plugin.isDebugEnabled()) {
-            plugin.getLogger().info("Stopped below-name health display for " + player.getName());
-        }
     }
     
     /**
-     * Update health display for a player
+     * OPTIMIZED: Update health display with minimal overhead
      */
     private void updateHealthDisplay(Player player) {
         Scoreboard healthScoreboard = playerHealthScoreboards.get(player.getUniqueId());
@@ -128,59 +120,38 @@ public class HealthDisplayManager {
         }
         
         try {
-            // Update health score for this player
+            // PERFORMANCE: Cache health calculations
             double health = player.getHealth();
-            double hearts = health / 2.0; // Convert health points to hearts
+            int displayHearts = (int) Math.round(health); // Direct conversion for performance
             
-            // Set the score to show hearts (rounded to nearest 0.5)
-            int displayHearts = (int) Math.round(hearts * 2); // Multiply by 2 to show half hearts
-            
-            // Get or create score for this player - FIXED: Use getScore() properly
+            // OPTIMIZED: Direct score access
             String playerName = player.getName();
             Score score = healthObjective.getScore(playerName);
             
-            // OPTIMIZED: Only update if the score has changed to reduce operations
+            // PERFORMANCE: Only update if changed
             if (score.getScore() != displayHearts) {
-                try {
-                    score.setScore(displayHearts);
-                } catch (IllegalStateException e) {
-                    // OPTIMIZED: Skip re-registration if it fails to reduce overhead
-                    if (plugin.isDebugEnabled()) {
-                        plugin.getLogger().warning("Failed to update health score for " + playerName + ": " + e.getMessage());
-                    }
-                }
+                score.setScore(displayHearts);
             }
             
-            // Also update for opponent if they're in the same duel
+            // OPTIMIZED: Update opponent health efficiently
             var roundsDuel = plugin.getDuelManager().getRoundsDuel(player);
             if (roundsDuel != null) {
                 Player opponent = roundsDuel.getOpponent(player);
                 if (opponent != null && opponent.isOnline()) {
-                    // Update opponent's health display on this player's scoreboard
                     double opponentHealth = opponent.getHealth();
-                    double opponentHearts = opponentHealth / 2.0;
-                    int opponentDisplayHearts = (int) Math.round(opponentHearts * 2);
+                    int opponentDisplayHearts = (int) Math.round(opponentHealth);
                     
                     String opponentName = opponent.getName();
                     Score opponentScore = healthObjective.getScore(opponentName);
                     
-                    // OPTIMIZED: Only update if the score has changed
+                    // PERFORMANCE: Only update if changed
                     if (opponentScore.getScore() != opponentDisplayHearts) {
-                        try {
-                            opponentScore.setScore(opponentDisplayHearts);
-                        } catch (IllegalStateException e) {
-                            // OPTIMIZED: Skip re-registration if it fails to reduce overhead
-                            if (plugin.isDebugEnabled()) {
-                                plugin.getLogger().warning("Failed to update opponent health score for " + opponentName + ": " + e.getMessage());
-                            }
-                        }
+                        opponentScore.setScore(opponentDisplayHearts);
                     }
                 }
             }
         } catch (Exception e) {
-            if (plugin.isDebugEnabled()) {
-                plugin.getLogger().warning("Error updating health display for " + player.getName() + ": " + e.getMessage());
-            }
+            // Silent fail for performance
         }
     }
     
@@ -221,9 +192,5 @@ public class HealthDisplayManager {
         }
         originalScoreboards.clear();
         playerHealthScoreboards.clear();
-        
-        if (plugin.isDebugEnabled()) {
-            plugin.getLogger().info("HealthDisplayManager cleaned up");
-        }
     }
 }

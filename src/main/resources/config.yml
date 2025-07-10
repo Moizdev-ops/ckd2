@@ -54,3 +54,8 @@ messages:
   spawn-set: "&aspawn point set for arena '{arena}'."
   cannot-teleport-in-duel: "&cyou cannot teleport during a duel!"
   cannot-use-command-in-duel: "&cyou cannot use that command during a duel!"
+  
+  # Round result titles (shown when a round ends)
+  round-win-title: "&9Won!"
+  round-lose-title: "&cLost!"
+  round-score-subtitle: "&7Score: &f{score}"

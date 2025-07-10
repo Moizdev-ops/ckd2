@@ -18,6 +18,7 @@ import org.bukkit.event.player.PlayerCommandPreprocessEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
+import org.bukkit.event.player.PlayerRespawnEvent;
 
 public class PlayerListener implements Listener {
     
@@ -36,23 +37,29 @@ public class PlayerListener implements Listener {
             try {
                 player.getAttribute(Attribute.MAX_HEALTH).setBaseValue(20.0);
                 player.setHealth(20.0);
-                if (plugin.isDebugEnabled()) {
-                    plugin.getLogger().info("Reset health for joining player: " + player.getName());
-                }
             } catch (Exception e) {
-                if (plugin.isDebugEnabled()) {
-                    plugin.getLogger().warning("Failed to reset health for joining player " + player.getName() + ": " + e.getMessage());
-                }
+                // Silent fail
             }
         }, 20L); // Wait 1 second after join
     }
     
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onEntityDamage(EntityDamageByEntityEvent event) {
+        // OPTIMIZED: Early return for non-player entities to reduce overhead
+        if (!(event.getEntity() instanceof Player) || !(event.getDamager() instanceof Player)) {
+            return;
+        }
+        
+        Player victim = (Player) event.getEntity();
+        Player damager = (Player) event.getDamager();
+        
+        // PERFORMANCE: Quick check if neither player is in a duel
+        if (!plugin.getDuelManager().isInAnyDuel(victim) && !plugin.getDuelManager().isInAnyDuel(damager)) {
+            return;
+        }
+        
         // Prevent damage during round transitions and duel end delays
         if (event.getEntity() instanceof Player) {
-            Player victim = (Player) event.getEntity();
-            
             // Check if victim is in transition (cannot be hit)
             if (plugin.getDuelManager().isPlayerInTransition(victim)) {
                 event.setCancelled(true);
@@ -61,22 +68,9 @@ public class PlayerListener implements Listener {
         }
         
         if (event.getDamager() instanceof Player) {
-            Player damager = (Player) event.getDamager();
-            
             // Check if damager is in transition (cannot hit)
             if (plugin.getDuelManager().isPlayerInTransition(damager)) {
                 event.setCancelled(true);
-                return;
-            }
-        }
-        
-        // OPTIMIZED: Early return if neither player is in a duel to reduce overhead
-        if (event.getEntity() instanceof Player && event.getDamager() instanceof Player) {
-            Player victim = (Player) event.getEntity();
-            Player damager = (Player) event.getDamager();
-            
-            // If neither player is in a duel, don't process further
-            if (!plugin.getDuelManager().isInAnyDuel(victim) && !plugin.getDuelManager().isInAnyDuel(damager)) {
                 return;
             }
         }
@@ -97,9 +91,6 @@ public class PlayerListener implements Listener {
             if (hasNaturalRegen != null && !hasNaturalRegen) {
                 if (event.getRegainReason() == EntityRegainHealthEvent.RegainReason.SATIATED) {
                     event.setCancelled(true);
-                    if (plugin.isDebugEnabled()) {
-                        plugin.getLogger().info("Cancelled natural health regen for " + player.getName() + " (kit setting)");
-                    }
                 }
             }
         }
@@ -168,10 +159,6 @@ public class PlayerListener implements Listener {
                     }, 20L); // 1 second delay
                 }
             }
-            
-            if (plugin.isDebugEnabled()) {
-                plugin.getLogger().info("Player " + player.getName() + " quit during duel - duel ended");
-            }
         }
     }
     
@@ -202,7 +189,7 @@ public class PlayerListener implements Listener {
         player.updateInventory();
     }
     
-    @EventHandler(priority = EventPriority.HIGH)
+    @EventHandler(priority = EventPriority.HIGHEST)
     public void onPlayerDeath(PlayerDeathEvent event) {
         Player player = event.getEntity();
         
@@ -211,37 +198,44 @@ public class PlayerListener implements Listener {
             event.getDrops().clear();
             event.setDroppedExp(0);
             
-            // FIXED: Keep player at death location instead of respawning
+            // Keep player at death location - prevent any teleportation
             event.setKeepInventory(true);
             event.setKeepLevel(true);
             
             // Cancel death message
             event.setDeathMessage(null);
             
-            // FIXED: Respawn player at death location immediately
-            plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
-                if (player.isOnline()) {
-                    // Store death location
-                    Location deathLocation = player.getLocation().clone();
-                    
-                    // Respawn player
-                    player.spigot().respawn();
-                    
-                    // Teleport back to death location immediately after respawn
-                    plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
-                        if (player.isOnline()) {
-                            player.teleport(deathLocation);
-                        }
-                    }, 1L);
-                }
-            }, 1L);
-            
-            // End the duel
+            // End the duel round
             plugin.getDuelManager().endDuel(player, true);
+        }
+    }
+    
+    @EventHandler(priority = EventPriority.HIGHEST)
+    public void onPlayerRespawn(PlayerRespawnEvent event) {
+        Player player = event.getPlayer();
+        
+        // FIXED: Cancel respawn completely if player is in duel to prevent world spawn teleportation
+        if (plugin.getDuelManager().isInAnyDuel(player)) {
+            // FIXED: PlayerRespawnEvent cannot be cancelled, so we handle it differently
+            // Store current location and teleport back immediately
+            Location deathLocation = player.getLocation();
             
-            if (plugin.isDebugEnabled()) {
-                plugin.getLogger().info("Player " + player.getName() + " died in duel - respawned at death location");
-            }
+            // Set respawn location to current location to minimize teleportation
+            event.setRespawnLocation(deathLocation);
+            
+            // Keep player alive at current location
+            plugin.getServer().getScheduler().runTask(plugin, () -> {
+                if (player.isOnline() && plugin.getDuelManager().isInAnyDuel(player)) {
+                    // Teleport back to death location immediately
+                    player.teleport(deathLocation);
+                    
+                    // Set health to 1 to keep player alive but show they "died"
+                    player.setHealth(1.0);
+                    
+                    // Add temporary invulnerability to prevent immediate re-death
+                    player.setNoDamageTicks(40); // 2 seconds of invulnerability
+                }
+            });
         }
     }
     
