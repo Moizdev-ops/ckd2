@@ -45,10 +45,21 @@ public class PlayerListener implements Listener {
     
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onEntityDamage(EntityDamageByEntityEvent event) {
+        // OPTIMIZED: Early return for non-player entities to reduce overhead
+        if (!(event.getEntity() instanceof Player) || !(event.getDamager() instanceof Player)) {
+            return;
+        }
+        
+        Player victim = (Player) event.getEntity();
+        Player damager = (Player) event.getDamager();
+        
+        // PERFORMANCE: Quick check if neither player is in a duel
+        if (!plugin.getDuelManager().isInAnyDuel(victim) && !plugin.getDuelManager().isInAnyDuel(damager)) {
+            return;
+        }
+        
         // Prevent damage during round transitions and duel end delays
         if (event.getEntity() instanceof Player) {
-            Player victim = (Player) event.getEntity();
-            
             // Check if victim is in transition (cannot be hit)
             if (plugin.getDuelManager().isPlayerInTransition(victim)) {
                 event.setCancelled(true);
@@ -57,22 +68,9 @@ public class PlayerListener implements Listener {
         }
         
         if (event.getDamager() instanceof Player) {
-            Player damager = (Player) event.getDamager();
-            
             // Check if damager is in transition (cannot hit)
             if (plugin.getDuelManager().isPlayerInTransition(damager)) {
                 event.setCancelled(true);
-                return;
-            }
-        }
-        
-        // OPTIMIZED: Early return if neither player is in a duel to reduce overhead
-        if (event.getEntity() instanceof Player && event.getDamager() instanceof Player) {
-            Player victim = (Player) event.getEntity();
-            Player damager = (Player) event.getDamager();
-            
-            // If neither player is in a duel, don't process further
-            if (!plugin.getDuelManager().isInAnyDuel(victim) && !plugin.getDuelManager().isInAnyDuel(damager)) {
                 return;
             }
         }

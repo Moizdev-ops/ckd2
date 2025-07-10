@@ -106,7 +106,7 @@ public class HealthDisplayManager {
     }
     
     /**
-     * Update health display for a player
+     * OPTIMIZED: Update health display with minimal overhead
      */
     private void updateHealthDisplay(Player player) {
         Scoreboard healthScoreboard = playerHealthScoreboards.get(player.getUniqueId());
@@ -120,51 +120,38 @@ public class HealthDisplayManager {
         }
         
         try {
-            // Update health score for this player
+            // PERFORMANCE: Cache health calculations
             double health = player.getHealth();
-            double hearts = health / 2.0; // Convert health points to hearts
+            int displayHearts = (int) Math.round(health); // Direct conversion for performance
             
-            // Set the score to show hearts (rounded to nearest 0.5)
-            int displayHearts = (int) Math.round(hearts * 2); // Multiply by 2 to show half hearts
-            
-            // Get or create score for this player
+            // OPTIMIZED: Direct score access
             String playerName = player.getName();
             Score score = healthObjective.getScore(playerName);
             
-            // OPTIMIZED: Only update if the score has changed to reduce operations
+            // PERFORMANCE: Only update if changed
             if (score.getScore() != displayHearts) {
-                try {
-                    score.setScore(displayHearts);
-                } catch (IllegalStateException e) {
-                    // Skip if it fails to reduce overhead
-                }
+                score.setScore(displayHearts);
             }
             
-            // Also update for opponent if they're in the same duel
+            // OPTIMIZED: Update opponent health efficiently
             var roundsDuel = plugin.getDuelManager().getRoundsDuel(player);
             if (roundsDuel != null) {
                 Player opponent = roundsDuel.getOpponent(player);
                 if (opponent != null && opponent.isOnline()) {
-                    // Update opponent's health display on this player's scoreboard
                     double opponentHealth = opponent.getHealth();
-                    double opponentHearts = opponentHealth / 2.0;
-                    int opponentDisplayHearts = (int) Math.round(opponentHearts * 2);
+                    int opponentDisplayHearts = (int) Math.round(opponentHealth);
                     
                     String opponentName = opponent.getName();
                     Score opponentScore = healthObjective.getScore(opponentName);
                     
-                    // OPTIMIZED: Only update if the score has changed
+                    // PERFORMANCE: Only update if changed
                     if (opponentScore.getScore() != opponentDisplayHearts) {
-                        try {
-                            opponentScore.setScore(opponentDisplayHearts);
-                        } catch (IllegalStateException e) {
-                            // Skip if it fails to reduce overhead
-                        }
+                        opponentScore.setScore(opponentDisplayHearts);
                     }
                 }
             }
         } catch (Exception e) {
-            // Silent fail to reduce console spam
+            // Silent fail for performance
         }
     }
     

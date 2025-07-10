@@ -283,16 +283,41 @@ public class DuelManager {
                     if (roundsDuel != null) {
                         Location spawnPoint = player.equals(roundsDuel.getPlayer1()) ? 
                             arena.getSpawn1() : arena.getSpawn2();
-                        player.teleport(spawnPoint);
+                        
+                        // FIXED: Safe teleport to prevent fall damage
+                        safeTeleportToArena(player, spawnPoint);
                         player.sendMessage(ChatColor.RED + "You cannot leave the arena during a duel!");
-                        player.playSound(player.getLocation(), Sound.ENTITY_ENDERMAN_TELEPORT, 1.0f, 1.0f);
                     }
                 }
             }
         };
         
-        boundsChecker.runTaskTimer(plugin, 20L, 40L); // Check every 2 seconds
+        // OPTIMIZED: Check every 1 second for better responsiveness
+        boundsChecker.runTaskTimer(plugin, 20L, 20L);
         arenaBoundsCheckers.put(player.getUniqueId(), boundsChecker);
+    }
+    
+    /**
+     * OPTIMIZED: Safe teleport that prevents fall damage and provides smooth experience
+     */
+    private void safeTeleportToArena(Player player, Location spawnPoint) {
+        // Store current velocity to prevent momentum issues
+        org.bukkit.util.Vector velocity = player.getVelocity();
+        
+        // Create safe spawn location (slightly above ground to prevent suffocation)
+        Location safeSpawn = spawnPoint.clone();
+        safeSpawn.setY(safeSpawn.getY() + 0.5); // Slightly above ground
+        
+        // Teleport player
+        player.teleport(safeSpawn);
+        
+        // FIXED: Prevent fall damage and reset velocity
+        player.setVelocity(new org.bukkit.util.Vector(0, 0, 0));
+        player.setFallDistance(0);
+        player.setNoDamageTicks(20); // 1 second of invulnerability
+        
+        // Play teleport sound
+        player.playSound(player.getLocation(), Sound.ENTITY_ENDERMAN_TELEPORT, 0.5f, 1.2f);
     }
     
     public void endDuel(Player player, boolean died) {
@@ -452,9 +477,9 @@ public class DuelManager {
         player1.teleport(roundsDuel.getArena().getSpawn1());
         player2.teleport(roundsDuel.getArena().getSpawn2());
         
-        // Prepare players for next round with SAME kit settings
-        preparePlayer(player1, roundsDuel.getKit(), roundsDuel.getPlayer1().getUniqueId());
-        preparePlayer(player2, roundsDuel.getKit(), roundsDuel.getPlayer1().getUniqueId());
+        // FIXED: Clear inventories and give fresh kit for next round
+        clearAndPreparePlayer(player1, roundsDuel.getKit(), roundsDuel.getPlayer1().getUniqueId());
+        clearAndPreparePlayer(player2, roundsDuel.getKit(), roundsDuel.getPlayer1().getUniqueId());
         
         // Restart health display if enabled
         if (plugin.getKitManager().getKitHealthIndicators(roundsDuel.getPlayer1().getUniqueId(), roundsDuel.getKit().getName())) {
@@ -513,6 +538,64 @@ public class DuelManager {
                 }
             }
         }.runTaskTimer(plugin, 0L, 20L);
+    }
+    
+    /**
+     * OPTIMIZED: Clear inventory and give fresh kit for new round
+     */
+    private void clearAndPreparePlayer(Player player, Kit kit, UUID kitOwnerUUID) {
+        // PERFORMANCE: Clear everything in one batch operation
+        player.getInventory().clear();
+        player.getInventory().setArmorContents(new ItemStack[4]);
+        player.getInventory().setItemInOffHand(null);
+        
+        // Remove all potion effects efficiently
+        player.getActivePotionEffects().forEach(effect -> player.removePotionEffect(effect.getType()));
+        
+        // Get kit settings from the kit owner (challenger)
+        double kitHearts = plugin.getKitManager().getKitHearts(kitOwnerUUID, kit.getName());
+        boolean naturalRegen = plugin.getKitManager().getKitNaturalRegen(kitOwnerUUID, kit.getName());
+        
+        // Set health based on kit settings (convert hearts to health points)
+        double maxHealth = kitHearts * 2.0; // 1 heart = 2 health points
+        try {
+            player.getAttribute(Attribute.MAX_HEALTH).setBaseValue(maxHealth);
+            player.setHealth(maxHealth);
+        } catch (Exception e) {
+            player.setHealth(Math.min(maxHealth, player.getMaxHealth()));
+        }
+        
+        // Set hunger and saturation
+        player.setFoodLevel(20);
+        player.setSaturation(20);
+        
+        // Handle natural health regeneration setting per player
+        playerNaturalRegenState.put(player.getUniqueId(), naturalRegen);
+        
+        // Set gamemode
+        player.setGameMode(GameMode.SURVIVAL);
+        
+        // Give kit - handle main inventory (36 slots)
+        ItemStack[] contents = kit.getContents();
+        if (contents != null) {
+            // Set main inventory (slots 0-35)
+            ItemStack[] mainInventory = new ItemStack[36];
+            System.arraycopy(contents, 0, mainInventory, 0, Math.min(contents.length, 36));
+            player.getInventory().setContents(mainInventory);
+            
+            // Set offhand (slot 36 in our extended array)
+            if (contents.length > 36 && contents[36] != null) {
+                player.getInventory().setItemInOffHand(contents[36]);
+            }
+        }
+        
+        // Give armor
+        if (kit.getArmor() != null) {
+            player.getInventory().setArmorContents(kit.getArmor().clone());
+        }
+        
+        // PERFORMANCE: Single inventory update at the end
+        player.updateInventory();
     }
     
     private void restorePlayer(Player player) {
