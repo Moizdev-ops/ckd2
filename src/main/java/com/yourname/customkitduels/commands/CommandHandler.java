@@ -260,11 +260,16 @@ public class CommandHandler implements CommandExecutor, TabCompleter {
             return true;
         }
         
-        if (args.length < 2) {
+        Player player = (Player) sender;
+        
+        if (!player.hasPermission("customkitduels.duelaccept")) {
+            player.sendMessage(ChatColor.RED + FontUtils.toSmallCaps("you don't have permission to accept duels."));
             return true;
         }
         
-        Player player = (Player) sender;
+        if (args.length < 2) {
+            return true;
+        }
         
         try {
             UUID challengerUUID = UUID.fromString(args[1]);

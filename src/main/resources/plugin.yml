@@ -42,11 +42,15 @@ permissions:
   customkitduels.leave:
     description: allows leaving duels
     default: true
+  customkitduels.duelaccept:
+    description: allows accepting duel requests
+    default: true
   customkitduels.admin:
     description: allows admin commands for customkit
     default: op
     children:
       - customkitduels.use
+      - customkitduels.duelaccept
       - customkitduels.arena
       - customkitduels.setspawn
       - customkitduels.editcategory

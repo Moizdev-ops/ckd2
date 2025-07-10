@@ -544,10 +544,15 @@ public class DuelManager {
      * OPTIMIZED: Clear inventory and give fresh kit for new round
      */
     private void clearAndPreparePlayer(Player player, Kit kit, UUID kitOwnerUUID) {
-        // PERFORMANCE: Clear everything in one batch operation
+        // PERFORMANCE: Clear everything completely in one batch operation
         player.getInventory().clear();
         player.getInventory().setArmorContents(new ItemStack[4]);
         player.getInventory().setItemInOffHand(null);
+        
+        // Clear cursor item
+        if (player.getItemOnCursor() != null && player.getItemOnCursor().getType() != Material.AIR) {
+            player.setItemOnCursor(null);
+        }
         
         // Remove all potion effects efficiently
         player.getActivePotionEffects().forEach(effect -> player.removePotionEffect(effect.getType()));
@@ -568,6 +573,10 @@ public class DuelManager {
         // Set hunger and saturation
         player.setFoodLevel(20);
         player.setSaturation(20);
+        
+        // Reset experience
+        player.setExp(0);
+        player.setLevel(0);
         
         // Handle natural health regeneration setting per player
         playerNaturalRegenState.put(player.getUniqueId(), naturalRegen);
@@ -602,14 +611,19 @@ public class DuelManager {
         // Stop health display
         plugin.getHealthDisplayManager().stopHealthDisplay(player);
         
-        // Clear inventory
+        // Clear inventory completely
         player.getInventory().clear();
         player.getInventory().setArmorContents(new ItemStack[4]);
         player.getInventory().setItemInOffHand(null);
         
-        // Remove potion effects
+        // Remove all potion effects
         for (PotionEffect effect : player.getActivePotionEffects()) {
             player.removePotionEffect(effect.getType());
+        }
+        
+        // Clear any remaining items from cursor
+        if (player.getItemOnCursor() != null && player.getItemOnCursor().getType() != Material.AIR) {
+            player.setItemOnCursor(null);
         }
         
         // Clean up natural regen state
@@ -625,6 +639,10 @@ public class DuelManager {
         }
         player.setFoodLevel(20);
         player.setSaturation(20);
+        
+        // Reset experience
+        player.setExp(0);
+        player.setLevel(0);
         
         // Set gamemode
         player.setGameMode(GameMode.SURVIVAL);
@@ -657,13 +675,20 @@ public class DuelManager {
             }
         }
         
+        // Force inventory update
         player.updateInventory();
     }
     
     private void preparePlayer(Player player, Kit kit, UUID kitOwnerUUID) {
-        // Clear player
+        // Store original inventory before clearing
+        savedLocations.put(player.getUniqueId(), player.getLocation());
+        
+        // Clear player inventory completely
         player.getInventory().clear();
         player.getInventory().setArmorContents(new ItemStack[4]);
+        player.getInventory().setItemInOffHand(null);
+        
+        // Clear all potion effects
         player.getActivePotionEffects().forEach(effect -> player.removePotionEffect(effect.getType()));
         
         // Get kit settings from the kit owner (challenger)

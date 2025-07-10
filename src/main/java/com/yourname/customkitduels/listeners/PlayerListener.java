@@ -163,10 +163,15 @@ public class PlayerListener implements Listener {
     }
     
     private void restorePlayerQuick(Player player) {
-        // Clear inventory
+        // Clear inventory completely
         player.getInventory().clear();
         player.getInventory().setArmorContents(new org.bukkit.inventory.ItemStack[4]);
         player.getInventory().setItemInOffHand(null);
+        
+        // Clear cursor item
+        if (player.getItemOnCursor() != null && player.getItemOnCursor().getType() != Material.AIR) {
+            player.setItemOnCursor(null);
+        }
         
         // Remove potion effects
         for (org.bukkit.potion.PotionEffect effect : player.getActivePotionEffects()) {
@@ -183,9 +188,14 @@ public class PlayerListener implements Listener {
         player.setFoodLevel(20);
         player.setSaturation(20);
         
+        // Reset experience
+        player.setExp(0);
+        player.setLevel(0);
+        
         // Set gamemode
         player.setGameMode(org.bukkit.GameMode.SURVIVAL);
         
+        // Force inventory update
         player.updateInventory();
     }
     
