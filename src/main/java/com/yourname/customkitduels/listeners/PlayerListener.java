@@ -216,12 +216,19 @@ public class PlayerListener implements Listener {
         
         // FIXED: Cancel respawn completely if player is in duel to prevent world spawn teleportation
         if (plugin.getDuelManager().isInAnyDuel(player)) {
-            // Cancel the respawn event to prevent any teleportation
-            event.setCancelled(true);
+            // FIXED: PlayerRespawnEvent cannot be cancelled, so we handle it differently
+            // Store current location and teleport back immediately
+            Location deathLocation = player.getLocation();
+            
+            // Set respawn location to current location to minimize teleportation
+            event.setRespawnLocation(deathLocation);
             
             // Keep player alive at current location
             plugin.getServer().getScheduler().runTask(plugin, () -> {
                 if (player.isOnline() && plugin.getDuelManager().isInAnyDuel(player)) {
+                    // Teleport back to death location immediately
+                    player.teleport(deathLocation);
+                    
                     // Set health to 1 to keep player alive but show they "died"
                     player.setHealth(1.0);
                     
